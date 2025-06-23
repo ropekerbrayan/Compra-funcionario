@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerenciamento - Lojinha</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <style> body { font-family: 'Inter', sans-serif; background-color: #f9fafb; } </style>
+</head>
+<body class="antialiased text-gray-800">
+    <div class="container mx-auto max-w-7xl p-4 sm:p-6 lg:p-8">
+        <header class="flex justify-between items-center pb-6 border-b border-gray-200 mb-6">
+            <div class="flex items-center space-x-3">
+                <i class="ph-bold ph-wrench text-3xl text-blue-600"></i>
+                <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">Gerenciamento</h1>
+            </div>
+             <a href="admin.html" class="font-semibold text-indigo-600 hover:underline flex items-center space-x-2"><i class="ph-bold ph-arrow-left"></i><span>Voltar ao Painel</span></a>
+        </header>
+        <main class="space-y-12">
+            <section>
+                <h2 class="text-2xl font-semibold mb-4 text-gray-800 border-b pb-2">Configurações</h2>
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <label for="sheets-url" class="block text-sm font-medium text-gray-700">URL do App Google Sheets</label>
+                    <p class="text-xs text-gray-500 mb-2">Cole aqui o URL do aplicativo web gerado pelo Google Apps Script.</p>
+                    <div class="flex items-center space-x-2">
+                        <input type="url" id="sheets-url" placeholder="https://script.google.com/macros/s/..." class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                        <button id="save-sheets-url" class="bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-700">Salvar</button>
+                    </div>
+                    <p id="url-feedback" class="text-green-600 text-sm mt-2 hidden">URL salva com sucesso!</p>
+                </div>
+            </section>
+            <section>
+                 <h2 class="text-2xl font-semibold mb-4 text-gray-800 border-b pb-2">Gerenciar Produtos</h2>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    <div class="md:col-span-1">
+                        <div class="bg-white rounded-lg shadow-md p-6 sticky top-8">
+                            <h3 id="form-title" class="text-xl font-semibold mb-4">Adicionar Novo Produto</h3>
+                            <form id="product-form" class="space-y-4">
+                                <input type="hidden" id="product-id">
+                                <div><label for="product-name" class="block text-sm font-medium">Nome do Produto</label><input type="text" id="product-name" required class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md"></div>
+                                <div><label for="product-code" class="block text-sm font-medium">Código do Produto</label><input type="text" id="product-code" required class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md"></div>
+                                <div><label for="product-price" class="block text-sm font-medium">Preço (ex: 35.50)</label><input type="number" step="0.01" id="product-price" required class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md"></div>
+                                <div><label for="product-image" class="block text-sm font-medium">URL da Imagem</label><input type="url" id="product-image" required class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="https://..."></div>
+                                <div class="flex space-x-2"><button type="submit" class="w-full bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700">Salvar</button><button type="button" id="cancel-edit-btn" class="w-full bg-gray-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-600 hidden">Cancelar</button></div>
+                            </form>
+                        </div>
+                    </div>
+                    <div class="md:col-span-2">
+                        <h3 class="text-xl font-semibold mb-4 text-gray-800">Produtos Cadastrados</h3>
+                        <div id="admin-product-list" class="space-y-4"></div>
+                    </div>
+                </div>
+            </section>
+            <section>
+                <h2 class="text-2xl font-semibold mb-4 text-gray-800 border-b pb-2">Usuários Cadastrados</h2>
+                <div id="admin-user-list" class="bg-white rounded-lg shadow-md overflow-hidden"></div>
+            </section>
+        </main>
+    </div>
+    <script type="module">
+        const PRODUCTS_KEY = 'lojinha_produtos', USERS_KEY = 'lojinha_usuarios', SHEETS_URL_KEY = 'lojinha_sheets_url';
+        let products = [], users = [];
+        function saveSheetsUrl() { const url = document.getElementById('sheets-url').value.trim(); if (url) { localStorage.setItem(SHEETS_URL_KEY, url); const feedback = document.getElementById('url-feedback'); feedback.classList.remove('hidden'); setTimeout(() => feedback.classList.add('hidden'), 3000); } }
+        function loadSheetsUrl() { const url = localStorage.getItem(SHEETS_URL_KEY); if (url) { document.getElementById('sheets-url').value = url; } }
+        function loadProducts() { products = JSON.parse(localStorage.getItem(PRODUCTS_KEY)) || []; }
+        function saveProducts() { localStorage.setItem(PRODUCTS_KEY, JSON.stringify(products)); }
+        function renderProducts() {
+            const list = document.getElementById('admin-product-list'); list.innerHTML = '';
+            if (products.length === 0) { list.innerHTML = `<p class="text-center text-gray-500 p-8">Nenhum produto cadastrado.</p>`; return; }
+            products.forEach(p => {
+                const el = document.createElement('div'); el.className = 'bg-white rounded-lg shadow p-4 flex items-center space-x-4';
+                el.innerHTML = `<img src="${p.image}" alt="${p.name}" class="w-20 h-20 rounded object-cover" onerror="this.src='https://placehold.co/80x80/e2e8f0/94a3b8?text=Sem+Img'"><div class="flex-grow"><p class="font-bold">${p.name}</p><p class="text-sm">Cód: ${p.code}</p><p class="text-sm">R$ ${Number(p.price).toFixed(2).replace('.', ',')}</p></div><div class="flex flex-col space-y-2"><button data-id="${p.id}" class="edit-btn bg-blue-500 text-white px-3 py-1 rounded text-sm">Editar</button><button data-id="${p.id}" class="delete-btn bg-red-500 text-white px-3 py-1 rounded text-sm">Remover</button></div>`;
+                list.appendChild(el);
+            });
+        }
+        function handleProductSubmit(e) {
+            e.preventDefault(); const id = document.getElementById('product-id').value;
+            const data = { name: document.getElementById('product-name').value, code: document.getElementById('product-code').value, price: parseFloat(document.getElementById('product-price').value), image: document.getElementById('product-image').value };
+            if (id) { const i = products.findIndex(p => p.id == id); if (i > -1) products[i] = { ...products[i], ...data }; } 
+            else { data.id = Date.now(); products.push(data); }
+            saveProducts(); renderProducts(); resetProductForm();
+        }
+        function editProduct(id) { const p = products.find(p => p.id == id); if(p) { document.getElementById('form-title').textContent = "Editar Produto"; document.getElementById('product-id').value = p.id; document.getElementById('product-name').value = p.name; document.getElementById('product-code').value = p.code; document.getElementById('product-price').value = p.price; document.getElementById('product-image').value = p.image; document.getElementById('cancel-edit-btn').classList.remove('hidden'); window.scrollTo(0, 0); } }
+        function deleteProduct(id) { if (confirm('Tem certeza?')) { products = products.filter(p => p.id != id); saveProducts(); renderProducts(); } }
+        function resetProductForm() { document.getElementById('product-form').reset(); document.getElementById('product-id').value = ''; document.getElementById('form-title').textContent = "Adicionar Novo Produto"; document.getElementById('cancel-edit-btn').classList.add('hidden'); }
+        function loadUsers() { users = JSON.parse(localStorage.getItem(USERS_KEY)) || []; }
+        function saveUsers() { localStorage.setItem(USERS_KEY, JSON.stringify(users)); }
+        function renderUsers() {
+            const list = document.getElementById('admin-user-list'); list.innerHTML = '';
+            if (users.length === 0) { list.innerHTML = `<p class="text-center text-gray-500 p-6">Nenhum usuário cadastrado.</p>`; return; }
+            const table = document.createElement('table'); table.className = 'w-full text-sm text-left';
+            table.innerHTML = `<thead class="bg-gray-100 text-xs text-gray-700 uppercase"><tr><th class="px-6 py-3">Nome</th><th class="px-6 py-3">Email / CPF</th><th class="px-6 py-3">Função</th><th class="px-6 py-3">Ação</th></tr></thead><tbody></tbody>`;
+            const tbody = table.querySelector('tbody');
+            users.forEach(u => { const row = document.createElement('tr'); row.className = 'bg-white border-b'; row.innerHTML = `<td class="px-6 py-4 font-medium">${u.name}</td><td class="px-6 py-4"><div>${u.email}</div><div>${u.cpf}</div></td><td class="px-6 py-4">${u.role}</td><td class="px-6 py-4"><button data-email="${u.email}" class="delete-user-btn font-medium text-red-600 hover:underline">Remover</button></td>`; tbody.appendChild(row); });
+            list.appendChild(table);
+        }
+        function deleteUser(email) { if (confirm(`Remover usuário ${email}?`)) { users = users.filter(u => u.email !== email); saveUsers(); renderUsers(); } }
+        document.addEventListener('DOMContentLoaded', () => {
+            loadSheetsUrl(); loadProducts(); renderProducts(); loadUsers(); renderUsers();
+            document.getElementById('save-sheets-url').addEventListener('click', saveSheetsUrl);
+            document.getElementById('product-form').addEventListener('submit', handleProductSubmit);
+            document.getElementById('cancel-edit-btn').addEventListener('click', resetProductForm);
+            document.getElementById('admin-product-list').addEventListener('click', e => { if (e.target.matches('.edit-btn')) editProduct(e.target.dataset.id); if (e.target.matches('.delete-btn')) deleteProduct(e.target.dataset.id); });
+            document.getElementById('admin-user-list').addEventListener('click', e => { if (e.target.matches('.delete-user-btn')) deleteUser(e.target.dataset.email); });
+        });
+    </script>
+</body>
+</html>
